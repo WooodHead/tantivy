@@ -150,7 +150,7 @@ impl<W, TValueWriter> Writer<W, TValueWriter>
         &self.previous_key[..]
     }
 
-    pub(crate) fn write_key(&mut self, key: &[u8]) {
+    pub fn write_key(&mut self, key: &[u8]) {
         let keep_len = common_prefix_len(&self.previous_key, key);
         let add_len = key.len() - keep_len;
         let increasing_keys =
@@ -176,11 +176,11 @@ impl<W, TValueWriter> Writer<W, TValueWriter>
         Ok(())
     }
 
-    pub(crate) fn write_value(&mut self, value: &TValueWriter::Value) {
+    pub fn write_value(&mut self, value: &TValueWriter::Value) {
         self.delta_writer.write_value(value)
     }
 
-    pub fn finalize(self) -> io::Result<()> {
+    pub fn finalize(self) -> io::Result<W> {
         self.delta_writer.finalize()
     }
 }
@@ -240,12 +240,13 @@ impl<W, TValueWriter> DeltaWriter<W, TValueWriter>
         Ok(())
     }
 
-    pub fn finalize(mut self) -> io::Result<()> {
+    pub fn finalize(mut self) -> io::Result<W> {
         if self.block.len() > 4 {
             self.flush_block()?;
         }
         self.flush_block()?;
-        Ok(())
+        let wrt = self.write.into_inner()?;
+        Ok(wrt)
     }
 }
 

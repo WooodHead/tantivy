@@ -1,7 +1,7 @@
 use tantivy_fst::automaton::AlwaysMatch;
 
 mod fst_termdict;
-// mod traits;
+mod sstable_termdict;
 
 #[cfg(test)]
 mod tests;

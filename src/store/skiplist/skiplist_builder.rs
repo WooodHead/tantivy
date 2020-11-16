@@ -15,7 +15,7 @@ impl<T: BinarySerializable> LayerBuilder<T> {
         self.buffer.len()
     }
 
-    fn write(&self, output: &mut dyn Write) -> Result<(), io::Error> {
+    fn write(&self, output: &mut dyn Write) -> io::Result<()> {
         output.write_all(&self.buffer)?;
         Ok(())
     }
