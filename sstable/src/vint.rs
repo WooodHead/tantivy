@@ -1,3 +1,5 @@
+use crate::BlockReader;
+
 const CONTINUE_BIT: u8 = 128u8;
 
 pub fn serialize(mut val: u64, buffer: &mut [u8]) -> usize {
@@ -29,6 +31,12 @@ pub fn deserialize_read(buf: &[u8]) -> (usize, u64) {
         shift += 7;
     }
     (consumed, result)
+}
+
+pub fn deserialize_from_block(block: &mut BlockReader) -> u64 {
+    let (num_bytes, val) = deserialize_read(block.buffer());
+    block.advance(num_bytes);
+    val
 }
 
 

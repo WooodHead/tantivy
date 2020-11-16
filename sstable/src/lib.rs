@@ -8,6 +8,8 @@ pub mod value;
 pub(crate) mod vint;
 
 mod block_reader;
+use crate::value::{ValueReader, ValueWriter};
+
 pub use self::block_reader::BlockReader;
 pub use self::merge::VoidMerge;
 
@@ -84,6 +86,53 @@ impl SSTable for VoidSSTable {
     type Value = ();
     type Reader = value::VoidReader;
     type Writer = value::VoidWriter;
+}
+
+pub struct SSTableMonotonicU64;
+
+#[derive(Default)]
+pub struct U64MonotonicReader {
+    val: u64
+}
+
+impl ValueReader for U64MonotonicReader {
+    type Value = u64;
+
+    fn value(&self) -> &Self::Value {
+        &self.val
+    }
+
+    fn read(&mut self, reader: &mut BlockReader) -> io::Result<()> {
+        let delta = vint::deserialize_from_block(reader);
+        self.val += delta;
+        Ok(())
+    }
+}
+
+#[derive(Default)]
+pub struct U64MonotonicWriter {
+    val: u64,
+}
+
+impl ValueWriter for U64MonotonicWriter {
+    type Value = u64;
+
+    fn write(&mut self, val: &u64, writer: &mut Vec<u8>) {
+        let delta = *val - self.val;
+        self.val = *val;
+        let mut buf = [1u8; 20];
+        let len = vint::serialize(delta as u64, &mut buf[..]);
+        writer.extend_from_slice(&mut buf[..len])
+    }
+}
+
+
+impl SSTable for SSTableMonotonicU64 {
+    type Value = u64;
+
+    type Reader = U64MonotonicReader;
+
+    type Writer = U64MonotonicWriter;
 }
 
 pub struct Reader<'a, TValueReader> {
@@ -265,9 +314,7 @@ where
     TValueReader: value::ValueReader,
 {
     fn deserialize_vint(&mut self) -> u64 {
-        let (consumed, result) = vint::deserialize_read(&self.block_reader.buffer());
-        self.block_reader.advance(consumed);
-        result
+        vint::deserialize_from_block(&mut self.block_reader)
     }
 
 
@@ -334,7 +381,7 @@ where
             .wrapping_sub(self.common_prefix_len), 
             self.suffix_end)
     }
-
+    
     pub fn value(&self) -> &TValueReader::Value {
         self.value_reader.value()
     }
@@ -342,7 +389,9 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::common_prefix_len;
+    use std::io;
+
+    use crate::{SSTableMonotonicU64, common_prefix_len};
     use crate::SSTable;
     use crate::VoidMerge;
     use crate::VoidSSTable;
@@ -434,4 +483,42 @@ mod test {
         assert!(VoidSSTable::merge(vec![&buffer[..], &buffer[..]], &mut output, VoidMerge).is_ok());
         assert_eq!(&output[..], &buffer[..]);
     }
+
+    #[test]
+    fn test_sstable() {
+        let mut buffer = Vec::new();
+        {
+            let mut writer = VoidSSTable::writer(&mut buffer);
+            writer.write(b"abcd", &()).unwrap();
+            writer.write(b"abe", &()).unwrap();
+            writer.finalize().unwrap();
+        }
+        let mut output = Vec::new();
+        assert!(VoidSSTable::merge(vec![&buffer[..], &buffer[..]], &mut output, VoidMerge).is_ok());
+        assert_eq!(&output[..], &buffer[..]);
+    }
+
+    #[test]
+    fn test_sstable_u64() -> io::Result<()> {
+        let mut buffer = Vec::new();
+        let mut writer = SSTableMonotonicU64::writer(&mut buffer);
+        writer.write(b"abcd", &1u64)?;
+        writer.write(b"abe", &4u64)?;
+        writer.write(b"gogo", &4324234234234234u64)?;
+        writer.finalize()?;
+        let mut reader = SSTableMonotonicU64::reader(&buffer[..]);
+        assert!(reader.advance()?);
+        assert_eq!(reader.key(), b"abcd");
+        assert_eq!(reader.value(), &1u64);
+        assert!(reader.advance()?);
+        assert_eq!(reader.key(), b"abe");
+        assert_eq!(reader.value(), &4u64);
+        assert!(reader.advance()?);
+        assert_eq!(reader.key(), b"gogo");
+        assert_eq!(reader.value(), &4324234234234234u64);
+        assert!(!reader.advance()?);
+        Ok(())
+    }
+
+
 }
