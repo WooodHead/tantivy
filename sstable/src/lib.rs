@@ -51,7 +51,6 @@ pub trait SSTable: Sized {
             common_prefix_len: 0,
             suffix_start: 0,
             suffix_end: 0,
-            offset: 0,
             value_reader: Self::Reader::default(),
             block_reader: BlockReader::new(Box::new(reader)),
         }
@@ -257,7 +256,6 @@ pub struct DeltaReader<'a, TValueReader> {
     common_prefix_len: usize,
     suffix_start: usize,
     suffix_end: usize,
-    offset: usize,
     value_reader: TValueReader,
     block_reader: BlockReader<'a>,
 }
@@ -267,20 +265,21 @@ where
     TValueReader: value::ValueReader,
 {
     fn deserialize_vint(&mut self) -> u64 {
-        let (consumed, result) = vint::deserialize_read(&self.block_reader.buffer()[self.offset..]);
-        self.offset += consumed;
+        let (consumed, result) = vint::deserialize_read(&self.block_reader.buffer());
+        self.block_reader.advance(consumed);
         result
     }
 
+
     fn read_keep_add(&mut self) -> Option<(usize, usize)> {
         let b = {
-            let buf = &self.block_reader.buffer()[self.offset..];
+            let buf = &self.block_reader.buffer();
             if buf.is_empty() {
                 return None;
             }
             buf[0]
         };
-        self.offset += 1;
+        self.block_reader.advance(1);
         match b {
             END_CODE => None,
             VINT_MODE => {
@@ -299,9 +298,9 @@ where
     fn read_delta_key(&mut self) -> bool {
         if let Some((keep, add)) = self.read_keep_add() {
             self.common_prefix_len = keep;
-            self.suffix_start = self.offset;
+            self.suffix_start = self.block_reader.offset();
             self.suffix_end = self.suffix_start + add;
-            self.offset += add;
+            self.block_reader.advance(add);
             true
         } else {
             false
@@ -326,15 +325,14 @@ where
     }
 
     pub fn suffix(&self) -> &[u8] {
-        &self.block_reader.buffer()[self.suffix_start..self.suffix_end]
+        &self.block_reader.buffer_from_to(self.suffix_start, self.suffix_end)
     }
 
     pub fn suffix_from(&self, offset: usize) -> &[u8] {
-        &self.block_reader.buffer()[self
-            .suffix_start
+        &self.block_reader.buffer_from_to(self.suffix_start
             .wrapping_add(offset)
-            .wrapping_sub(self.common_prefix_len)
-            ..self.suffix_end]
+            .wrapping_sub(self.common_prefix_len), 
+            self.suffix_end)
     }
 
     pub fn value(&self) -> &TValueReader::Value {
