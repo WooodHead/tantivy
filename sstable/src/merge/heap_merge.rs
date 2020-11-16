@@ -1,5 +1,5 @@
 
-use {SSTable, Reader, Writer};
+use crate::{SSTable, Reader, Writer};
 
 use super::SingleValueMerger;
 use super::ValueMerger;

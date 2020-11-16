@@ -1,11 +1,8 @@
-extern crate jemallocator;
-
-#[global_allocator]
-static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
-
 extern crate slice_deque;
 extern crate core;
 extern crate byteorder;
+
+mod owned_bytes;
 
 use std::io::{self, Write, BufWriter};
 use merge::ValueMerger;
@@ -342,10 +339,10 @@ impl<'a, TValueReader> DeltaReader<'a, TValueReader>
 
 #[cfg(test)]
 mod test {
-    use common_prefix_len;
-    use super::VoidSSTable;
-    use super::SSTable;
-    use VoidMerge;
+    use crate::common_prefix_len;
+    use crate::VoidSSTable;
+    use crate::SSTable;
+    use crate::VoidMerge;
 
     fn aux_test_common_prefix_len(left: &str, right: &str, expect_len: usize) {
         assert_eq!(common_prefix_len(left.as_bytes(), right.as_bytes()), expect_len);

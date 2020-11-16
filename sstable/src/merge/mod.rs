@@ -57,8 +57,8 @@ impl SingleValueMerger<()> for () {
 #[cfg(test)]
 mod tests {
 
-    use VoidSSTable;
-    use SSTable;
+    use crate::VoidSSTable;
+    use crate::SSTable;
     use super::VoidMerge;
     use std::str;
     use std::collections::BTreeSet;

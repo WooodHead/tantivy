@@ -34,8 +34,8 @@ pub fn deserialize_read(buf: &[u8]) -> (usize, u64) {
 
 #[cfg(test)]
 mod tests {
-    use vint::serialize;
-    use vint::deserialize_read;
+    use crate::vint::serialize;
+    use crate::vint::deserialize_read;
     use std::u64;
 
     fn aux_test_int(val: u64, expect_len: usize) {

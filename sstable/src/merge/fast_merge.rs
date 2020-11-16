@@ -1,14 +1,13 @@
-use {SSTable, Reader};
+use crate::{SSTable, Reader, Writer};
+use crate::merge::{ValueMerger, SingleValueMerger};
 use std::io;
-use merge::{ValueMerger, SingleValueMerger};
-use Writer;
 use std::collections::BinaryHeap;
 use std::cmp::Ordering;
 use std::cmp::Ord;
 use std::option::Option::None;
 use std::mem;
 use std::fmt::Debug;
-use common_prefix_len;
+use crate::common_prefix_len;
 
 fn pick_lowest_with_ties<'a, 'b, T, FnKey: Fn(&'b T)->K, K>(elements: &'b [T], key: FnKey, ids: &'a mut [usize]) -> (&'a [usize], &'a [usize])
     where

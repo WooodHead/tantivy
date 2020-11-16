@@ -1,14 +1,10 @@
 #[macro_use]
 extern crate criterion;
-extern crate rand;
-extern crate sstable;
 
-use sstable::{SSTable, VoidSSTable};
+use tantivy_sstable::{SSTable, VoidSSTable, VoidMerge};
 use criterion::Criterion;
 use rand::prelude::*;
-
 use std::collections::BTreeSet;
-use sstable::VoidMerge;
 
 const NUM_SSTABLE: usize = 18;
 

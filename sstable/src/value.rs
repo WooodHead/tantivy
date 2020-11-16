@@ -1,5 +1,5 @@
 use std::io;
-use BlockReader;
+use crate::BlockReader;
 
 pub trait ValueReader: Default {
 
